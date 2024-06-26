@@ -6,11 +6,17 @@ executors:
       - image: cimg/base:stable
     resource_class: xlarge
 
+orbs:
+  docker: circleci/docker@2.6.0
+
 jobs:
   build:
     executor: default
     steps:
       - checkout
+      - docker/check:
+          docker-username: DOCKERHUB_USERNAME
+          docker-password: DOCKERHUB_PASSWORD
       - setup_remote_docker:
           docker_layer_caching: false # Enable this if necessary
       - run:
@@ -18,17 +24,31 @@ jobs:
           command: sudo apt-get update && sudo apt-get install -y parallel
       - run:
           name: Run build.sh to build all the Docker images
-          command: bash build.sh
+          command: |
+            tmpfile=/tmp/images.txt && touch $tmpfile
+            ./build.sh $tmpfile
+            IMAGES="$(<"$tmpfile")"
+            echo "export IMAGES=\"$IMAGES\"" >> $BASH_ENV
       - run:
-          name: List all of the Docker images
-          command: docker images --all
+          name: Print env
+          command: |
+            printenv
+      - when:
+          condition:
+            equal: [ << pipeline.git.branch >>, main ]
+          steps:
+          - run:
+              name: Loop through the images and push them to Docker Hub
+              command: |
+                echo "$IMAGES" | while IFS=$'\n' read -r image; do
+                  echo "Pushing $image to Docker Hub"
+                  docker push $image
+                done
 
 workflows:
   version: 2
   build:
     jobs:
       - build:
-          filters:
-            branches:
-              only:
-                - main
+          context:
+            - org-global
