@@ -41,6 +41,6 @@ export DOCKERHUB_USERNAME
 export BASE_DIR
 
 # Iterate through the directory structure
-find "$BASE_DIR" -name Dockerfile | parallel build_and_tag
+find "$BASE_DIR" -name Dockerfile | parallel --verbose build_and_tag
 
 echo "All images have been built and tagged."
