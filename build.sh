@@ -8,22 +8,8 @@ DOCKERHUB_USERNAME="jpcaparas"
 
 # Function to build and tag Docker images
 build_and_tag() {
-    local image_name="$1"
-    local tag="$2"
-    local dockerfile_path="$3"
+    local dockerfile="$1"
 
-    echo "Building image: $DOCKERHUB_USERNAME/$image_name:$tag"
-    docker build -t "$DOCKERHUB_USERNAME/$image_name:$tag" -f "$dockerfile_path" "$(dirname "$dockerfile_path")"
-
-    if [ $? -eq 0 ]; then
-        echo "Successfully built $DOCKERHUB_USERNAME/$image_name:$tag"
-    else
-        echo "Failed to build $DOCKERHUB_USERNAME/$image_name:$tag"
-    fi
-}
-
-# Iterate through the directory structure
-find "$BASE_DIR" -name Dockerfile | while read -r dockerfile; do
     # Get the relative path of the Dockerfile
     rel_path="${dockerfile#$BASE_DIR/}"
 
@@ -33,14 +19,28 @@ find "$BASE_DIR" -name Dockerfile | while read -r dockerfile; do
 
     # Skip directories starting with a dot
     if [[ "$image_name" == .* ]]; then
-        continue
+        return
     fi
 
     # Extract the tag (remaining path without the image name and 'Dockerfile')
     tag=$(dirname "${rel_path#$image_name/}" | tr '/' '-')
 
-    # Build and tag the image
-    build_and_tag "$image_name" "$tag" "$dockerfile"
-done
+    echo "Building image: $DOCKERHUB_USERNAME/$image_name:$tag"
+    docker build -t "$DOCKERHUB_USERNAME/$image_name:$tag" -f "$dockerfile" "$(dirname "$dockerfile")"
+
+    if [ $? -eq 0 ]; then
+        echo "Successfully built $DOCKERHUB_USERNAME/$image_name:$tag"
+    else
+        echo "Failed to build $DOCKERHUB_USERNAME/$image_name:$tag"
+    fi
+}
+
+# Export the function so it can be used by GNU parallel
+export -f build_and_tag
+export DOCKERHUB_USERNAME
+export BASE_DIR
+
+# Iterate through the directory structure
+find "$BASE_DIR" -name Dockerfile | parallel build_and_tag
 
 echo "All images have been built and tagged."
