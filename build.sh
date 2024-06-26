@@ -32,6 +32,7 @@ build_and_tag() {
         echo "Successfully built $DOCKERHUB_USERNAME/$image_name:$tag"
     else
         echo "Failed to build $DOCKERHUB_USERNAME/$image_name:$tag"
+        exit 1
     fi
 }
 
@@ -41,6 +42,11 @@ export DOCKERHUB_USERNAME
 export BASE_DIR
 
 # Iterate through the directory structure
-find "$BASE_DIR" -name Dockerfile | parallel --verbose build_and_tag
+find "$BASE_DIR" -name Dockerfile | parallel --verbose --halt soon,fail=1 build_and_tag
 
-echo "All images have been built and tagged."
+if [ $? -eq 0 ]; then
+    echo "All images have been built and tagged."
+else
+    echo "Build failed."
+    exit 1
+fi
