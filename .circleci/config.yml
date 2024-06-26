@@ -19,6 +19,9 @@ jobs:
       - run:
           name: Run build.sh to build all the Docker images
           command: bash build.sh
+      - run:
+          name: List all of the Docker images
+          command: docker images --all
 
 workflows:
   version: 2
